@@ -1,6 +1,6 @@
 # POLAR Comex — Inteligência de Importação
 
-O POLAR Comex é um mini sistema de Business Intelligence voltado à análise de operações de importação. A ferramenta permite importar planilhas Excel com dados de comércio exterior e transformar essas informações em indicadores, rankings e comparativos de preço.
+O POLAR Comex é um mini sistema de Business Intelligence voltado à análise de operações de importação. A ferramenta permite importar planilhas Excel com dados de comércio exterior e transformar essas informações em indicadores, rankings e comparativos de preço. EM FASE DE TESTES, PRIMEIRA VERSÃO!!
 
 ## Funcionalidades
 
