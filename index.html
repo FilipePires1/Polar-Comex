@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POLAR — Inteligência de Importação (Comex)</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+    <header class="header">
+        <div class="container header-content">
+            <div>
+                <h1>POLAR <span>Inteligência de Importação — Comex</span></h1>
+            </div>
+            <div class="header-actions">
+                <div class="toggle-wrap">
+                    <div class="toggle-switch" id="toggleNames" onclick="app.toggleNames()"></div><span
+                        class="toggle-label">Mostrar nomes reais dos concorrentes</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('fileInput').click()">📁
+                    Importar Excel</button>
+                <button class="btn btn-danger btn-sm" onclick="app.clearDatabase()">🗑️ Limpar Base</button>
+            </div>
+        </div>
+    </header>
+    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls" multiple
+        onchange="app.handleFiles(this.files)">
+    <div id="uploadScreen" class="container">
+        <div class="upload-section" id="dropZone">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                style="color:var(--accent);margin-bottom:16px">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <h2>Importar dados do Comex</h2>
+            <p>Arraste arquivos Excel aqui ou clique para selecionar. Aceita múltiplos arquivos (um por NCM/produto).
+                Dados armazenados localmente no navegador.</p>
+            <button class="btn btn-primary upload-btn" onclick="document.getElementById('fileInput').click()">Selecionar
+                arquivo .xlsx</button>
+            <div class="upload-meta">
+                <p>Formato: aba por NCM · Linha 1 = metadado · Linha 2 = cabeçalho · Linha 3+ = dados</p>
+                <p>Colunas: <code>ANO/MÊS</code>, <code>PAIS DE ORIGEM</code>, <code>NCM</code>,
+                    <code>PROVÁVEL EXPORTADOR</code>, <code>PROVÁVEL IMPORTADOR</code>,
+                    <code>Valor FOB Estimado Unitário</code>, etc.</p>
+            </div>
+            <div class="progress-bar" id="uploadProgress" style="display:none;max-width:400px;margin:16px auto 0">
+                <div class="progress-fill" id="uploadProgressFill"></div>
+            </div>
+            <div id="uploadStatus" style="margin-top:12px;font-size:.875rem;color:var(--text-light)"></div>
+        </div>
+    </div>
+    <div id="dashboardScreen" style="display:none">
+        <div class="container">
+            <div class="config-panel">
+                <div class="config-item"><label>Nome da empresa cliente (filtro)</label><input type="text"
+                        id="companyFilter" value="POLAR" onchange="app.updateCompanyFilter()" placeholder="Ex: POLAR">
+                </div>
+                <div class="config-item"><label>Threshold verde</label><input type="number" id="threshGreen" value="-2"
+                        step="0.5" onchange="app.refreshAll()" style="width:70px"> %</div>
+                <div class="config-item"><label>Threshold amarelo</label><input type="number" id="threshYellow"
+                        value="2" step="0.5" onchange="app.refreshAll()" style="width:70px"> %</div>
+                <div class="config-item" style="margin-left:auto"><label style="opacity:0">.</label><span
+                        id="recordCount" style="font-size:.875rem;color:var(--text-light)"></span></div>
+            </div>
+        </div>
+        <div class="filters-bar">
+            <div class="container">
+                <div class="filters-grid">
+                    <div class="filter-group"><label>Ano</label><select id="filterAno" onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                    <div class="filter-group"><label>Mês Início</label><select id="filterMesIni"
+                            onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                    <div class="filter-group"><label>Mês Fim</label><select id="filterMesFim"
+                            onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                    <div class="filter-group"><label>Fornecedor</label><select id="filterFornecedor"
+                            onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                    <div class="filter-group"><label>Produto (NCM)</label><select id="filterNCM"
+                            onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                    <div class="filter-group"><label>País de Origem</label><select id="filterPais"
+                            onchange="app.applyFilters()">
+                            <option value="">Todos</option>
+                        </select></div>
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <div class="section animate-in">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">📊 Resumo Executivo — POLAR</div>
+                        <div class="section-subtitle">Métricas agregadas no período filtrado</div>
+                    </div>
+                </div>
+                <div class="cards-grid" id="resumoCards"></div>
+            </div>
+            <div class="section animate-in">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">📈 Evolução Mensal de Preços</div>
+                        <div class="section-subtitle">US$/kg — POLAR vs Mercado</div>
+                    </div>
+                </div>
+                <div class="chart-container"><canvas id="chartEvolucao"></canvas></div>
+            </div>
+            <div class="section animate-in">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">🛒 Compras da POLAR — Análise Detalhada</div>
+                        <div class="section-subtitle">Clique em uma linha para ver todos os dados da compra e comparação
+                            completa com o mercado</div>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table id="tableCompras">
+                        <thead>
+                            <tr>
+                                <th>Mês/Ano</th>
+                                <th>Produto</th>
+                                <th>Fornecedor</th>
+                                <th class="text-right">Qtd (kg)</th>
+                                <th class="text-right">FOB Total (US$)</th>
+                                <th class="text-right">US$/kg</th>
+                                <th class="text-right">US$/ton</th>
+                                <th class="text-right">Melhor Preço do Exportador</th>
+                                <th class="text-center">Quem Comprou Melhor</th>
+                                <th class="text-right">Preço Melhor</th>
+                                <th class="text-right">Vol. Total Exp. (kg)</th>
+                                <th class="text-center">vs Média</th>
+                                <th class="text-center">Classif.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyCompras"></tbody>
+                        <tfoot id="tfootCompras"></tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="section animate-in">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">🏆 Ranking por Fornecedor</div>
+                        <div class="section-subtitle">Posição da POLAR no ranking de preço por fornecedor</div>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table id="tableRanking">
+                        <thead>
+                            <tr>
+                                <th>Fornecedor</th>
+                                <th class="text-center">Pos. POLAR</th>
+                                <th class="text-center">Total Comp.</th>
+                                <th class="text-right">Preço POLAR</th>
+                                <th class="text-right">Melhor Preço</th>
+                                <th class="text-right">Média Mercado</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyRanking"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="section animate-in">
+                <div class="section-header">
+                    <div>
+                        <div class="section-title">💰 Economia Potencial</div>
+                        <div class="section-subtitle">Quanto a POLAR poderia ter economizado comprando ao melhor preço
+                            do mercado</div>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table id="tableEconomia">
+                        <thead>
+                            <tr>
+                                <th>Mês/Ano</th>
+                                <th>Fornecedor</th>
+                                <th class="text-right">Qtd (kg)</th>
+                                <th class="text-right">Preço Pago</th>
+                                <th class="text-right">Melhor Preço</th>
+                                <th class="text-right">Economia (US$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyEconomia"></tbody>
+                        <tfoot id="tfootEconomia"></tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-overlay" id="modalCompra">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <h3>🔍 Detalhes da Compra — POLAR</h3>
+                    <div class="section-subtitle" id="modalCompraSubtitle"></div>
+                </div>
+                <button class="modal-close" onclick="app.closeModalCompra()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4 style="color:var(--primary);margin-bottom:12px;font-size:1rem">📋 Dados Completos da Compra</h4>
+                <div class="data-grid" id="modalCompraDados"></div>
+                <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+                <h4 style="color:var(--primary);margin-bottom:12px;font-size:1rem">📊 Comparação com o Mercado — Mesmo
+                    Fornecedor/Mês</h4>
+                <div class="summary-box" id="modalCompraSummary"></div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Importador</th>
+                                <th class="text-right">US$/kg</th>
+                                <th class="text-right">Qtd (kg)</th>
+                                <th class="text-right">FOB Total</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalCompraRanking"></tbody>
+                    </table>
+                </div>
+                <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+                <h4 style="color:var(--primary);margin-bottom:12px;font-size:1rem">📈 Comparação com Todo o Mercado do
+                    Mês (mesmo NCM)</h4>
+                <div class="summary-box" id="modalCompraMercado"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="app.closeModalCompra()">Fechar</button>
+            </div>
+        </div>
+    </div>
+    <footer class="footer">
+        <div class="container">POLAR — Dashboard de Inteligência de Importação · Dados armazenados localmente no
+            navegador</div>
+    </footer>
+    <script src="app.js"></script>
+</body>
+
+</html>
