@@ -55,4 +55,4 @@ Os dados importados são armazenados apenas no navegador do usuário, usando Ind
 
 ## Objetivo
 
-Apoiar decisões de compras internacionais ao tornar a comparação de preços de importação mais simples, visual e estratégica.
+Apoiar decisões de compras internacionais ao tornar a comparação de preços de importação mais simples, visual e estratégica. 
